@@ -1,0 +1,100 @@
+## Purpose
+
+Define the browser-only workflow for importing exported DIVERA 24/7 alert mails from `.eml` files, extracting alert data locally, and displaying the parsed results.
+
+## Requirements
+
+### Requirement: Multiple EML file selection
+The system SHALL provide a web page where users can add multiple `.eml` files through a drag-and-drop area and through a conventional file picker.
+
+#### Scenario: User drops multiple EML files
+- **WHEN** the user drops multiple `.eml` files into the drop area
+- **THEN** the system lists the selected files without starting parsing automatically
+
+#### Scenario: User selects multiple EML files by file picker
+- **WHEN** the user selects multiple `.eml` files through the file picker
+- **THEN** the system lists the selected files without starting parsing automatically
+
+#### Scenario: User adds unsupported file type
+- **WHEN** the user adds a file that is not an `.eml` file
+- **THEN** the system marks that file as unsupported and excludes it from parsing
+
+### Requirement: Explicit parsing start
+The system SHALL provide a parsing button that starts processing the currently selected supported `.eml` files.
+
+#### Scenario: User starts parsing selected files
+- **WHEN** at least one supported `.eml` file is selected and the user activates the parsing button
+- **THEN** the system parses each selected supported file in the browser
+
+#### Scenario: User starts parsing without files
+- **WHEN** no supported `.eml` files are selected and the user activates the parsing button
+- **THEN** the system keeps parsing idle and informs the user that files must be selected first
+
+### Requirement: Local browser-side mail parsing
+The system SHALL parse uploaded `.eml` files locally in the browser and SHALL NOT send mail content or parsed alert data to a backend service.
+
+#### Scenario: EML file is parsed
+- **WHEN** the user starts parsing a selected `.eml` file
+- **THEN** the system reads and parses the file using browser APIs
+- **AND** the mail content remains on the client side
+
+### Requirement: Mail body extraction
+The system SHALL extract a decoded readable mail body from each parsed `.eml` file, preferring the `text/plain` body and falling back to an HTML-derived text body when necessary.
+
+#### Scenario: Plain text body exists
+- **WHEN** a parsed `.eml` file contains a decoded `text/plain` body
+- **THEN** the system uses the plain text body for DIVERA field extraction
+
+#### Scenario: Only HTML body exists
+- **WHEN** a parsed `.eml` file has no usable plain text body and contains an HTML body
+- **THEN** the system derives readable text from the HTML body for DIVERA field extraction
+
+#### Scenario: No usable body exists
+- **WHEN** a parsed `.eml` file has no usable plain text body and no usable HTML body
+- **THEN** the system marks that file as failed with a body extraction error
+
+### Requirement: DIVERA alert field extraction
+The system SHALL extract structured alert data from the decoded DIVERA mail body using field markers rather than concrete sample values.
+
+#### Scenario: Standard DIVERA alert body is parsed
+- **WHEN** the decoded body contains `Stichwort:`, `Adresse:`, `Sonderrechte/Priorität:`, alert text, and `Einheiten:`
+- **THEN** the system extracts `einsatzstichwort`, `ort`, `priority`, `alarm_text`, `einheit`, and an empty `verfasser`
+
+#### Scenario: Optional author field is parsed
+- **WHEN** the decoded body contains `Verfasst von:` after `Einheiten:`
+- **THEN** the system extracts the author value as `verfasser`
+- **AND** the system excludes `Verfasst von:` and its value from `einheit`
+
+#### Scenario: Footer follows DIVERA alert body
+- **WHEN** the decoded body contains DIVERA footer text after the alert fields
+- **THEN** the system excludes the footer from extracted alert fields
+
+#### Scenario: Required DIVERA marker is missing
+- **WHEN** the decoded body is missing a required DIVERA field marker
+- **THEN** the system marks that file as failed with a field extraction error
+
+### Requirement: Mail date extraction
+The system SHALL extract `datum` from the `.eml` mail `Date` header.
+
+#### Scenario: Date header is present
+- **WHEN** a parsed `.eml` file contains a valid `Date` header
+- **THEN** the system includes the parsed date as `datum` in the result
+
+#### Scenario: Date header is missing or invalid
+- **WHEN** a parsed `.eml` file has no valid `Date` header
+- **THEN** the system marks that file as failed with a date extraction error
+
+### Requirement: Tabular result display
+The system SHALL display parsing results in a table with one row per processed file.
+
+#### Scenario: File parses successfully
+- **WHEN** a selected `.eml` file is parsed successfully
+- **THEN** the table row shows `datum`, `einsatzstichwort`, `ort`, `priority`, `alarm_text`, `einheit`, and `verfasser`
+
+#### Scenario: File parsing fails
+- **WHEN** a selected `.eml` file cannot be parsed successfully
+- **THEN** the table row shows the file name and an error status explaining the failure
+
+#### Scenario: Multiple files are parsed
+- **WHEN** multiple selected `.eml` files are parsed
+- **THEN** the table displays one result row for each processed file
