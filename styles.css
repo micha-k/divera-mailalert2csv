@@ -327,6 +327,44 @@ td {
   overflow-wrap: anywhere;
 }
 
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-strong);
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 0 0 32px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.footer-meta span {
+  white-space: nowrap;
+}
+
+.footer-credit {
+  margin: 0;
+}
+
+.footer-credit a {
+  font-weight: 700;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     width: min(100% - 20px, 1180px);
@@ -352,5 +390,12 @@ td {
 
   .button {
     width: 100%;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    width: min(100% - 20px, 1180px);
+    padding-bottom: 18px;
   }
 }

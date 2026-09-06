@@ -7,6 +7,9 @@ import {
   normalizeBodyText
 } from './parser-core.mjs';
 
+const APP_JS_VERSION = '0.1.0';
+const LEAVE_CONFIRMATION_MESSAGE = 'Lokale Auswahl und Ergebnisse gehen beim Verlassen verloren.';
+
 const dropzone = document.querySelector('#dropzone');
 const fileInput = document.querySelector('#file-input');
 const parseButton = document.querySelector('#parse-button');
@@ -15,9 +18,11 @@ const fileList = document.querySelector('#file-list');
 const selectionSummary = document.querySelector('#selection-summary');
 const resultsBody = document.querySelector('#results-body');
 const resultCount = document.querySelector('#result-count');
+const jsVersion = document.querySelector('#js-version');
 
 let selectedFiles = [];
 let results = [];
+let isParsing = false;
 
 dropzone.addEventListener('dragenter', handleDragEnter);
 dropzone.addEventListener('dragover', handleDragOver);
@@ -27,7 +32,9 @@ dropzone.addEventListener('keydown', handleDropzoneKeydown);
 fileInput.addEventListener('change', () => addFiles(fileInput.files));
 parseButton.addEventListener('click', parseSelectedFiles);
 clearButton.addEventListener('click', clearFiles);
+globalThis.addEventListener('beforeunload', handleBeforeUnload);
 
+renderAppMetadata();
 render();
 
 function handleDragEnter(event) {
@@ -88,6 +95,10 @@ function clearFiles() {
 }
 
 async function parseSelectedFiles() {
+  if (isParsing) {
+    return;
+  }
+
   const supportedEntries = selectedFiles.filter((entry) => entry.supported);
 
   if (supportedEntries.length === 0) {
@@ -95,40 +106,65 @@ async function parseSelectedFiles() {
     return;
   }
 
-  parseButton.disabled = true;
   results = [];
+  isParsing = true;
+  render();
 
-  for (const entry of supportedEntries) {
-    entry.status = 'parsing';
-    render();
+  try {
+    for (const entry of supportedEntries) {
+      entry.status = 'parsing';
+      render();
 
-    try {
-      const parsed = await parseEmlFile(entry.file);
-      entry.status = 'done';
-      results.push({
-        source_file: entry.file.name,
-        status: 'ok',
-        error: '',
-        ...parsed
-      });
-    } catch (error) {
-      entry.status = 'error';
-      results.push({
-        source_file: entry.file.name,
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unbekannter Parsing-Fehler',
-        datum: '',
-        einsatzstichwort: '',
-        ort: '',
-        priority: '',
-        alarm_text: '',
-        einheit: '',
-        verfasser: ''
-      });
+      try {
+        const parsed = await parseEmlFile(entry.file);
+        entry.status = 'done';
+        results.push({
+          source_file: entry.file.name,
+          status: 'ok',
+          error: '',
+          ...parsed
+        });
+      } catch (error) {
+        entry.status = 'error';
+        results.push({
+          source_file: entry.file.name,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unbekannter Parsing-Fehler',
+          datum: '',
+          einsatzstichwort: '',
+          ort: '',
+          priority: '',
+          alarm_text: '',
+          einheit: '',
+          verfasser: ''
+        });
+      }
+
+      render();
     }
-
+  } finally {
+    isParsing = false;
     render();
   }
+}
+
+function renderAppMetadata() {
+  if (jsVersion) {
+    jsVersion.textContent = `JS v${APP_JS_VERSION}`;
+  }
+}
+
+function handleBeforeUnload(event) {
+  if (!hasVolatilePageState()) {
+    return;
+  }
+
+  event.preventDefault();
+  event.returnValue = LEAVE_CONFIRMATION_MESSAGE;
+}
+
+function hasVolatilePageState() {
+  return selectedFiles.length > 0 || results.length > 0 || isParsing;
 }
 
 async function parseEmlFile(file) {
@@ -181,8 +217,8 @@ function renderSelection() {
   }
 
   selectionSummary.textContent = parts.length > 0 ? parts.join(', ') : 'Keine Dateien ausgewählt';
-  parseButton.disabled = supportedCount === 0;
-  clearButton.disabled = selectedFiles.length === 0;
+  parseButton.disabled = isParsing || supportedCount === 0;
+  clearButton.disabled = isParsing || selectedFiles.length === 0;
   fileList.replaceChildren(...selectedFiles.map(createFileListItem));
 }
 
