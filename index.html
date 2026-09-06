@@ -47,19 +47,33 @@
             <h2>Ergebnisse</h2>
             <span class="result-count" id="result-count">0 verarbeitet</span>
           </div>
+          <div class="result-tools" aria-label="Ergebnisse filtern">
+            <label class="field">
+              <span>Suche</span>
+              <input id="result-search" type="search" placeholder="In Ergebnissen suchen" disabled>
+            </label>
+            <label class="field compact">
+              <span>Status</span>
+              <select id="status-filter" disabled>
+                <option value="all">Alle</option>
+                <option value="ok">Erfolgreich</option>
+                <option value="error">Fehler</option>
+              </select>
+            </label>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Datei</th>
-                  <th>Status</th>
-                  <th>Datum</th>
-                  <th>Einsatzstichwort</th>
-                  <th>Ort</th>
-                  <th>Priorität</th>
+                  <th><button class="sort-button" type="button" data-sort-key="source_file" disabled>Datei <span class="sort-indicator" aria-hidden="true"></span></button></th>
+                  <th><button class="sort-button" type="button" data-sort-key="status" disabled>Status <span class="sort-indicator" aria-hidden="true"></span></button></th>
+                  <th><button class="sort-button" type="button" data-sort-key="datum" disabled>Datum <span class="sort-indicator" aria-hidden="true"></span></button></th>
+                  <th><button class="sort-button" type="button" data-sort-key="einsatzstichwort" disabled>Einsatzstichwort <span class="sort-indicator" aria-hidden="true"></span></button></th>
+                  <th><button class="sort-button" type="button" data-sort-key="ort" disabled>Ort <span class="sort-indicator" aria-hidden="true"></span></button></th>
+                  <th><button class="sort-button" type="button" data-sort-key="priority" disabled>Priorität <span class="sort-indicator" aria-hidden="true"></span></button></th>
                   <th>Alarmtext</th>
-                  <th>Einheit</th>
-                  <th>Verfasser</th>
+                  <th><button class="sort-button" type="button" data-sort-key="einheit" disabled>Einheit <span class="sort-indicator" aria-hidden="true"></span></button></th>
+                  <th><button class="sort-button" type="button" data-sort-key="verfasser" disabled>Verfasser <span class="sort-indicator" aria-hidden="true"></span></button></th>
                 </tr>
               </thead>
               <tbody id="results-body">

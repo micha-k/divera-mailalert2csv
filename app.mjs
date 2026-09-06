@@ -19,10 +19,30 @@ const selectionSummary = document.querySelector('#selection-summary');
 const resultsBody = document.querySelector('#results-body');
 const resultCount = document.querySelector('#result-count');
 const jsVersion = document.querySelector('#js-version');
+const resultSearch = document.querySelector('#result-search');
+const statusFilter = document.querySelector('#status-filter');
+const sortButtons = Array.from(document.querySelectorAll('[data-sort-key]'));
+
+const SORTABLE_COLUMNS = new Set([
+  'source_file',
+  'status',
+  'datum',
+  'einsatzstichwort',
+  'ort',
+  'priority',
+  'einheit',
+  'verfasser'
+]);
 
 let selectedFiles = [];
 let results = [];
 let isParsing = false;
+let filterText = '';
+let selectedStatus = 'all';
+let sortState = {
+  column: '',
+  direction: 'asc'
+};
 
 dropzone.addEventListener('dragenter', handleDragEnter);
 dropzone.addEventListener('dragover', handleDragOver);
@@ -32,6 +52,17 @@ dropzone.addEventListener('keydown', handleDropzoneKeydown);
 fileInput.addEventListener('change', () => addFiles(fileInput.files));
 parseButton.addEventListener('click', parseSelectedFiles);
 clearButton.addEventListener('click', clearFiles);
+if (resultSearch) {
+  resultSearch.addEventListener('input', handleResultSearch);
+}
+
+if (statusFilter) {
+  statusFilter.addEventListener('change', handleStatusFilter);
+}
+
+for (const button of sortButtons) {
+  button.addEventListener('click', handleSortButtonClick);
+}
 globalThis.addEventListener('beforeunload', handleBeforeUnload);
 
 renderAppMetadata();
@@ -91,6 +122,7 @@ function createFileId(file) {
 function clearFiles() {
   selectedFiles = [];
   results = [];
+  resetResultViewState();
   render();
 }
 
@@ -165,6 +197,55 @@ function handleBeforeUnload(event) {
 
 function hasVolatilePageState() {
   return selectedFiles.length > 0 || results.length > 0 || isParsing;
+}
+
+function handleResultSearch(event) {
+  filterText = event.target.value;
+  renderResults();
+}
+
+function handleStatusFilter(event) {
+  selectedStatus = event.target.value;
+  renderResults();
+}
+
+function handleSortButtonClick(event) {
+  const column = event.currentTarget.dataset.sortKey;
+
+  if (!SORTABLE_COLUMNS.has(column) || results.length === 0) {
+    return;
+  }
+
+  if (sortState.column === column) {
+    sortState = {
+      column,
+      direction: sortState.direction === 'asc' ? 'desc' : 'asc'
+    };
+  } else {
+    sortState = {
+      column,
+      direction: 'asc'
+    };
+  }
+
+  renderResults();
+}
+
+function resetResultViewState() {
+  filterText = '';
+  selectedStatus = 'all';
+  sortState = {
+    column: '',
+    direction: 'asc'
+  };
+
+  if (resultSearch) {
+    resultSearch.value = '';
+  }
+
+  if (statusFilter) {
+    statusFilter.value = selectedStatus;
+  }
 }
 
 async function parseEmlFile(file) {
@@ -248,20 +329,145 @@ function createFileListItem(entry) {
 }
 
 function renderResults() {
-  resultCount.textContent = `${results.length} verarbeitet`;
+  renderResultControls();
+
+  const visibleResults = getVisibleResults();
+  resultCount.textContent = getResultCountLabel(visibleResults.length);
 
   if (results.length === 0) {
-    const row = document.createElement('tr');
-    row.className = 'empty-row';
-    const cell = document.createElement('td');
-    cell.colSpan = 9;
-    cell.textContent = 'Noch keine Ergebnisse';
-    row.append(cell);
-    resultsBody.replaceChildren(row);
+    resultsBody.replaceChildren(createEmptyResultRow('Noch keine Ergebnisse'));
     return;
   }
 
-  resultsBody.replaceChildren(...results.map(createResultRow));
+  if (visibleResults.length === 0) {
+    resultsBody.replaceChildren(createEmptyResultRow('Keine Treffer für die aktiven Filter'));
+    return;
+  }
+
+  resultsBody.replaceChildren(...visibleResults.map(createResultRow));
+}
+
+function renderResultControls() {
+  const hasResults = results.length > 0;
+
+  if (resultSearch) {
+    resultSearch.disabled = !hasResults;
+  }
+
+  if (statusFilter) {
+    statusFilter.disabled = !hasResults;
+  }
+
+  for (const button of sortButtons) {
+    const column = button.dataset.sortKey;
+    const indicator = button.querySelector('.sort-indicator');
+    const isActive = sortState.column === column;
+
+    button.disabled = !hasResults;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+
+    if (indicator) {
+      indicator.textContent = isActive ? (sortState.direction === 'asc' ? '▲' : '▼') : '';
+    }
+  }
+}
+
+function getVisibleResults() {
+  const filteredResults = results.filter(matchesResultFilters);
+  return sortResults(filteredResults);
+}
+
+function matchesResultFilters(result) {
+  if (selectedStatus !== 'all' && result.status !== selectedStatus) {
+    return false;
+  }
+
+  const normalizedFilterText = normalizeSearchText(filterText);
+
+  if (!normalizedFilterText) {
+    return true;
+  }
+
+  return getSearchableResultText(result).includes(normalizedFilterText);
+}
+
+function getSearchableResultText(result) {
+  return normalizeSearchText([
+    result.source_file,
+    getStatusLabel(result.status),
+    result.error,
+    result.datum,
+    result.einsatzstichwort,
+    result.ort,
+    result.priority,
+    result.alarm_text,
+    result.einheit,
+    result.verfasser
+  ].join(' '));
+}
+
+function normalizeSearchText(text) {
+  return String(text || '').trim().toLocaleLowerCase('de-DE');
+}
+
+function sortResults(filteredResults) {
+  if (!SORTABLE_COLUMNS.has(sortState.column)) {
+    return filteredResults;
+  }
+
+  return [...filteredResults].sort((left, right) => {
+    const comparison = compareResultValues(left, right, sortState.column);
+    return sortState.direction === 'asc' ? comparison : -comparison;
+  });
+}
+
+function compareResultValues(left, right, column) {
+  const leftValue = getSortableValue(left, column);
+  const rightValue = getSortableValue(right, column);
+
+  return leftValue.localeCompare(rightValue, 'de-DE', {
+    numeric: true,
+    sensitivity: 'base'
+  });
+}
+
+function getSortableValue(result, column) {
+  if (column === 'status') {
+    return getStatusLabel(result.status);
+  }
+
+  return String(result[column] || '');
+}
+
+function getStatusLabel(status) {
+  if (status === 'ok') {
+    return 'Erfolgreich';
+  }
+
+  if (status === 'error') {
+    return 'Fehler';
+  }
+
+  return '';
+}
+
+function getResultCountLabel(visibleCount) {
+  if (results.length === 0 || visibleCount === results.length) {
+    return `${results.length} verarbeitet`;
+  }
+
+  return `${visibleCount} von ${results.length} verarbeitet`;
+}
+
+function createEmptyResultRow(message) {
+  const row = document.createElement('tr');
+  row.className = 'empty-row';
+  const cell = document.createElement('td');
+  cell.colSpan = 9;
+  cell.textContent = message;
+  row.append(cell);
+  return row;
 }
 
 function createResultRow(result) {
