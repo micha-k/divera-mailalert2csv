@@ -5,9 +5,15 @@ import {
   formatMailDateHeader,
   htmlToText,
   normalizeBodyText
-} from './parser-core.mjs';
+} from './parser-core.mjs?v=0.1.3';
+import {
+  CSV_MEDIA_TYPE,
+  createCsvFilename,
+  createResultsCsv,
+  hasSuccessfulResults
+} from './csv-export.mjs?v=0.1.3';
 
-const APP_JS_VERSION = '0.1.1';
+const APP_JS_VERSION = '0.1.3';
 const LEAVE_CONFIRMATION_MESSAGE = 'Lokale Auswahl und Ergebnisse gehen beim Verlassen verloren.';
 
 const dropzone = document.querySelector('#dropzone');
@@ -18,6 +24,7 @@ const fileList = document.querySelector('#file-list');
 const selectionSummary = document.querySelector('#selection-summary');
 const resultsBody = document.querySelector('#results-body');
 const resultCount = document.querySelector('#result-count');
+const downloadCsvButton = document.querySelector('#download-csv-button');
 const jsVersion = document.querySelector('#js-version');
 const resultSearch = document.querySelector('#result-search');
 const statusFilter = document.querySelector('#status-filter');
@@ -52,6 +59,7 @@ dropzone.addEventListener('keydown', handleDropzoneKeydown);
 fileInput.addEventListener('change', () => addFiles(fileInput.files));
 parseButton.addEventListener('click', parseSelectedFiles);
 clearButton.addEventListener('click', clearFiles);
+downloadCsvButton.addEventListener('click', downloadSuccessfulResults);
 if (resultSearch) {
   resultSearch.addEventListener('input', handleResultSearch);
 }
@@ -197,6 +205,27 @@ function handleBeforeUnload(event) {
 
 function hasVolatilePageState() {
   return selectedFiles.length > 0 || results.length > 0 || isParsing;
+}
+
+function downloadSuccessfulResults() {
+  if (!hasSuccessfulResults(results)) {
+    return;
+  }
+
+  const blob = new Blob([createResultsCsv(results)], { type: CSV_MEDIA_TYPE });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = createCsvFilename();
+  link.hidden = true;
+  document.body.append(link);
+
+  try {
+    link.click();
+  } finally {
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function handleResultSearch(event) {
@@ -349,6 +378,7 @@ function renderResults() {
 
 function renderResultControls() {
   const hasResults = results.length > 0;
+  downloadCsvButton.disabled = !hasSuccessfulResults(results);
 
   if (resultSearch) {
     resultSearch.disabled = !hasResults;

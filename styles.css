@@ -219,6 +219,16 @@ h2 {
   color: var(--muted);
 }
 
+.result-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.download-button {
+  min-height: 36px;
+}
+
 .result-tools {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(160px, auto);
@@ -486,6 +496,11 @@ a:hover {
 
   .result-tools {
     grid-template-columns: 1fr;
+  }
+
+  .result-heading-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   h1 {

@@ -31,7 +31,10 @@ Then open [http://localhost:8000/](http://localhost:8000/) in a browser.
 2. Press **Parsing starten** to process the supported files.
 3. Review the result table. Use the search field and status selector to filter
    rows, or select a sortable column heading to change the result order.
-4. Use **Leeren** to remove the selected files and results before starting a
+4. Press **CSV herunterladen** to download all successfully parsed rows as an
+   Excel-compatible CSV file. Search, status filters, and sorting affect only
+   the on-page table and do not limit or reorder the download.
+5. Use **Leeren** to remove the selected files and results before starting a
    new import.
 
 All mail files are processed locally in the browser. The app does not upload
