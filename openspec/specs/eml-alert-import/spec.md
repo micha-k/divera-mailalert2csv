@@ -54,23 +54,41 @@ The system SHALL extract a decoded readable mail body from each parsed `.eml` fi
 - **THEN** the system marks that file as failed with a body extraction error
 
 ### Requirement: DIVERA alert field extraction
-The system SHALL extract structured alert data from the decoded DIVERA mail body using field markers rather than concrete sample values.
+The system SHALL extract structured alert data from the decoded DIVERA mail body using field markers rather than concrete sample values. `Stichwort:` and `Sonderrechte/Priorität:` SHALL be required markers. `Adresse:`, `Einheiten:`, and `Verfasst von:` SHALL be optional markers.
 
 #### Scenario: Standard DIVERA alert body is parsed
 - **WHEN** the decoded body contains `Stichwort:`, `Adresse:`, `Sonderrechte/Priorität:`, alert text, and `Einheiten:`
 - **THEN** the system extracts `einsatzstichwort`, `ort`, `priority`, `alarm_text`, `einheit`, and an empty `verfasser`
 
+#### Scenario: Alert body without address is parsed
+- **WHEN** the decoded body contains `Stichwort:`, `Sonderrechte/Priorität:`, alert text, and `Einheiten:`
+- **AND** the decoded body does not contain `Adresse:`
+- **THEN** the system extracts `einsatzstichwort`, `priority`, `alarm_text`, and `einheit`
+- **AND** the system returns an empty `ort`
+
+#### Scenario: Alert body without units is parsed
+- **WHEN** the decoded body contains `Stichwort:`, `Adresse:`, `Sonderrechte/Priorität:`, and alert text
+- **AND** the decoded body does not contain `Einheiten:`
+- **THEN** the system extracts `einsatzstichwort`, `ort`, `priority`, and `alarm_text`
+- **AND** the system returns an empty `einheit`
+
+#### Scenario: Alert body without address and units is parsed
+- **WHEN** the decoded body contains `Stichwort:`, `Sonderrechte/Priorität:`, and alert text
+- **AND** the decoded body does not contain `Adresse:` or `Einheiten:`
+- **THEN** the system extracts `einsatzstichwort`, `priority`, and `alarm_text`
+- **AND** the system returns empty `ort` and `einheit` values
+
 #### Scenario: Optional author field is parsed
-- **WHEN** the decoded body contains `Verfasst von:` after `Einheiten:`
+- **WHEN** the decoded body contains `Verfasst von:` after the alert text or units section
 - **THEN** the system extracts the author value as `verfasser`
-- **AND** the system excludes `Verfasst von:` and its value from `einheit`
+- **AND** the system excludes `Verfasst von:` and its value from `alarm_text` and `einheit`
 
 #### Scenario: Footer follows DIVERA alert body
 - **WHEN** the decoded body contains DIVERA footer text after the alert fields
 - **THEN** the system excludes the footer from extracted alert fields
 
 #### Scenario: Required DIVERA marker is missing
-- **WHEN** the decoded body is missing a required DIVERA field marker
+- **WHEN** the decoded body is missing `Stichwort:` or `Sonderrechte/Priorität:`
 - **THEN** the system marks that file as failed with a field extraction error
 
 ### Requirement: Mail date extraction
@@ -100,7 +118,7 @@ The system SHALL display parsing results in a table with one row per processed f
 - **THEN** the table displays one result row for each processed file
 
 ### Requirement: App footer metadata
-The system SHALL display footer metadata for the static browser app, including separate HTML and JavaScript version labels and developer attribution.
+The system SHALL display footer metadata for the static browser app, including independently maintained HTML and JavaScript version labels and developer attribution. The HTML version SHALL represent `index.html`, `styles.css`, and user-visible static assets. The JavaScript version SHALL represent `app.mjs` and `parser-core.mjs`.
 
 #### Scenario: Footer shows HTML version
 - **WHEN** the page is loaded
@@ -114,6 +132,64 @@ The system SHALL display footer metadata for the static browser app, including s
 - **WHEN** the page is loaded
 - **THEN** the footer shows `developed with ❤️ by micha-k`
 - **AND** `micha-k` links to `https://github.com/micha-k`
+
+#### Scenario: Change affects only HTML and UI resources
+- **WHEN** a release changes `index.html`, `styles.css`, or a user-visible static asset without changing JavaScript resources
+- **THEN** the HTML version is incremented
+- **AND** the JavaScript version remains unchanged
+
+#### Scenario: Change affects only JavaScript resources
+- **WHEN** a release changes `app.mjs` or `parser-core.mjs` without changing HTML and UI resources
+- **THEN** the JavaScript version is incremented
+- **AND** the HTML version remains unchanged
+
+#### Scenario: Change affects both versioned areas
+- **WHEN** a release changes both HTML/UI resources and JavaScript resources
+- **THEN** both version labels are incremented independently
+
+#### Scenario: Change affects documentation only
+- **WHEN** a release changes only project documentation
+- **THEN** neither application version is incremented
+
+### Requirement: Application branding
+The system SHALL use the existing `docs/logo.png` asset as compact application branding beside the page title and in the README.
+
+#### Scenario: Page header displays the logo
+- **WHEN** the page is loaded
+- **THEN** the logo is displayed at a compact size immediately to the left of the application title group
+- **AND** the logo does not displace or overlap header content at supported viewport sizes
+
+#### Scenario: Decorative page logo is announced accessibly
+- **WHEN** assistive technology reads the page header
+- **THEN** the logo does not duplicate the adjacent application title
+
+#### Scenario: README displays the logo
+- **WHEN** the README is rendered with repository-relative assets available
+- **THEN** the same logo is displayed near the project title at a constrained size
+- **AND** the logo has descriptive alternative text
+
+### Requirement: User usage documentation
+The project SHALL prominently link to the hosted GitHub Pages app and document how to open and operate it without implying that mail data is uploaded. Local static-server guidance SHALL be presented as an optional self-hosting path.
+
+#### Scenario: User opens the hosted app
+- **WHEN** a user views the beginning of the README
+- **THEN** the documentation prominently links to `https://micha-k.github.io/divera-mailalert2csv/`
+- **AND** the documentation states that the hosted app can be used without local setup
+
+#### Scenario: User prepares a locally hosted app
+- **WHEN** a user reads the README usage section
+- **THEN** the documentation identifies local server setup as optional and necessary only for local hosting
+- **AND** the documentation explains how to serve the repository with a static web server
+- **AND** the documentation provides a concrete local server command and browser address
+
+#### Scenario: User follows the import workflow
+- **WHEN** a user reads the README usage section
+- **THEN** the documentation explains file selection or drag and drop, explicit parsing, and result search, filtering, and sorting
+
+#### Scenario: User understands data handling and volatility
+- **WHEN** a user reads the README usage section
+- **THEN** the documentation states that mail files are processed locally in the browser
+- **AND** the documentation warns that selected files and results can be lost when the page is reloaded or closed
 
 ### Requirement: Page unload protection
 The system SHALL warn users before page reload, close, or navigation when local file selection, parsing progress, or parsed results may be lost.

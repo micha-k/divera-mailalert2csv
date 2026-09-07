@@ -116,9 +116,7 @@ export function extractDiveraAlert(body) {
   };
   const requiredMarkers = {
     stichwort: markers.stichwort,
-    adresse: markers.adresse,
-    priority: markers.priority,
-    einheiten: markers.einheiten
+    priority: markers.priority
   };
 
   for (const [name, marker] of Object.entries(requiredMarkers)) {
@@ -127,25 +125,58 @@ export function extractDiveraAlert(body) {
     }
   }
 
-  if (!(markers.stichwort.after <= markers.adresse.start &&
-    markers.adresse.after <= markers.priority.start &&
-    markers.priority.after <= markers.einheiten.start)) {
-    throw new Error('DIVERA-Felder stehen nicht in der erwarteten Reihenfolge');
-  }
+  validateMarkerOrder(markers);
 
-  const priorityAndAlarmText = text.slice(markers.priority.after, markers.einheiten.start);
+  const stichwortEnd = markers.adresse ? markers.adresse.start : markers.priority.start;
+  const priorityAndAlarmTextEnd = findEarliestMarkerStart(
+    text.length,
+    markers.einheiten,
+    markers.verfasser
+  );
+  const priorityAndAlarmText = text.slice(markers.priority.after, priorityAndAlarmTextEnd);
   const { priority, alarmText } = splitPriorityAndAlarmText(priorityAndAlarmText);
-  const hasVerfasser = markers.verfasser && markers.einheiten.after <= markers.verfasser.start;
+  const hasVerfasser = Boolean(markers.verfasser);
   const einheitEnd = hasVerfasser ? markers.verfasser.start : text.length;
 
   return {
-    einsatzstichwort: cleanSingleLine(text.slice(markers.stichwort.after, markers.adresse.start)),
-    ort: cleanSingleLine(text.slice(markers.adresse.after, markers.priority.start)),
+    einsatzstichwort: cleanSingleLine(text.slice(markers.stichwort.after, stichwortEnd)),
+    ort: markers.adresse ? cleanSingleLine(text.slice(markers.adresse.after, markers.priority.start)) : '',
     priority: cleanSingleLine(priority),
     alarm_text: cleanAlarmText(alarmText),
-    einheit: cleanSingleLine(text.slice(markers.einheiten.after, einheitEnd)),
+    einheit: markers.einheiten ? cleanSingleLine(text.slice(markers.einheiten.after, einheitEnd)) : '',
     verfasser: hasVerfasser ? cleanSingleLine(text.slice(markers.verfasser.after)) : ''
   };
+}
+
+function validateMarkerOrder(markers) {
+  const orderedMarkers = [
+    ['stichwort', markers.stichwort],
+    ['adresse', markers.adresse],
+    ['priority', markers.priority],
+    ['einheiten', markers.einheiten],
+    ['verfasser', markers.verfasser]
+  ].filter(([, marker]) => marker);
+
+  for (let index = 1; index < orderedMarkers.length; index += 1) {
+    const [, previousMarker] = orderedMarkers[index - 1];
+    const [, marker] = orderedMarkers[index];
+
+    if (previousMarker.after > marker.start) {
+      throw new Error('DIVERA-Felder stehen nicht in der erwarteten Reihenfolge');
+    }
+  }
+}
+
+function findEarliestMarkerStart(fallback, ...markers) {
+  const starts = markers
+    .filter(Boolean)
+    .map((marker) => marker.start);
+
+  if (starts.length === 0) {
+    return fallback;
+  }
+
+  return Math.min(...starts);
 }
 
 function findMarker(text, pattern) {

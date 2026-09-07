@@ -7,7 +7,7 @@ import {
   normalizeBodyText
 } from './parser-core.mjs';
 
-const APP_JS_VERSION = '0.1.0';
+const APP_JS_VERSION = '0.1.1';
 const LEAVE_CONFIRMATION_MESSAGE = 'Lokale Auswahl und Ergebnisse gehen beim Verlassen verloren.';
 
 const dropzone = document.querySelector('#dropzone');

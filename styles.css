@@ -52,6 +52,25 @@ select {
   margin-bottom: 24px;
 }
 
+.app-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-logo {
+  display: block;
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.app-title-copy {
+  min-width: 0;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: var(--accent);
@@ -471,6 +490,12 @@ a:hover {
 
   h1 {
     font-size: 1.6rem;
+  }
+
+  .app-logo {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
   }
 
   .button {
