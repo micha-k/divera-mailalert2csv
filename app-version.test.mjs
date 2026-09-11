@@ -13,6 +13,7 @@ assert.equal(getMatch(html, /styles\.css\?v=([^"']+)/, 'stylesheet token'), html
 assert.equal(getMatch(html, /app\.mjs\?v=([^"']+)/, 'app token'), jsVersion);
 assert.equal(getMatch(app, /parser-core\.mjs\?v=([^"']+)/, 'parser token'), jsVersion);
 assert.equal(getMatch(app, /csv-export\.mjs\?v=([^"']+)/, 'CSV token'), jsVersion);
+assert.equal(getMatch(app, /result-view\.mjs\?v=([^"']+)/, 'result view token'), jsVersion);
 
 console.log('App version token tests passed');
 

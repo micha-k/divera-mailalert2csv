@@ -5,15 +5,20 @@ import {
   formatMailDateHeader,
   htmlToText,
   normalizeBodyText
-} from './parser-core.mjs?v=0.1.3';
+} from './parser-core.mjs?v=0.1.4';
 import {
   CSV_MEDIA_TYPE,
   createCsvFilename,
   createResultsCsv,
   hasSuccessfulResults
-} from './csv-export.mjs?v=0.1.3';
+} from './csv-export.mjs?v=0.1.4';
+import {
+  getSearchableResultText,
+  normalizeSearchText,
+  sortResults
+} from './result-view.mjs?v=0.1.4';
 
-const APP_JS_VERSION = '0.1.3';
+const APP_JS_VERSION = '0.1.4';
 const LEAVE_CONFIRMATION_MESSAGE = 'Lokale Auswahl und Ergebnisse gehen beim Verlassen verloren.';
 
 const dropzone = document.querySelector('#dropzone');
@@ -38,6 +43,7 @@ const SORTABLE_COLUMNS = new Set([
   'ort',
   'priority',
   'einheit',
+  'gruppe',
   'verfasser'
 ]);
 
@@ -176,6 +182,7 @@ async function parseSelectedFiles() {
           priority: '',
           alarm_text: '',
           einheit: '',
+          gruppe: '',
           verfasser: ''
         });
       }
@@ -405,7 +412,7 @@ function renderResultControls() {
 
 function getVisibleResults() {
   const filteredResults = results.filter(matchesResultFilters);
-  return sortResults(filteredResults);
+  return sortResults(filteredResults, sortState, SORTABLE_COLUMNS);
 }
 
 function matchesResultFilters(result) {
@@ -422,66 +429,6 @@ function matchesResultFilters(result) {
   return getSearchableResultText(result).includes(normalizedFilterText);
 }
 
-function getSearchableResultText(result) {
-  return normalizeSearchText([
-    result.source_file,
-    getStatusLabel(result.status),
-    result.error,
-    result.datum,
-    result.einsatzstichwort,
-    result.ort,
-    result.priority,
-    result.alarm_text,
-    result.einheit,
-    result.verfasser
-  ].join(' '));
-}
-
-function normalizeSearchText(text) {
-  return String(text || '').trim().toLocaleLowerCase('de-DE');
-}
-
-function sortResults(filteredResults) {
-  if (!SORTABLE_COLUMNS.has(sortState.column)) {
-    return filteredResults;
-  }
-
-  return [...filteredResults].sort((left, right) => {
-    const comparison = compareResultValues(left, right, sortState.column);
-    return sortState.direction === 'asc' ? comparison : -comparison;
-  });
-}
-
-function compareResultValues(left, right, column) {
-  const leftValue = getSortableValue(left, column);
-  const rightValue = getSortableValue(right, column);
-
-  return leftValue.localeCompare(rightValue, 'de-DE', {
-    numeric: true,
-    sensitivity: 'base'
-  });
-}
-
-function getSortableValue(result, column) {
-  if (column === 'status') {
-    return getStatusLabel(result.status);
-  }
-
-  return String(result[column] || '');
-}
-
-function getStatusLabel(status) {
-  if (status === 'ok') {
-    return 'Erfolgreich';
-  }
-
-  if (status === 'error') {
-    return 'Fehler';
-  }
-
-  return '';
-}
-
 function getResultCountLabel(visibleCount) {
   if (results.length === 0 || visibleCount === results.length) {
     return `${results.length} verarbeitet`;
@@ -494,7 +441,7 @@ function createEmptyResultRow(message) {
   const row = document.createElement('tr');
   row.className = 'empty-row';
   const cell = document.createElement('td');
-  cell.colSpan = 9;
+  cell.colSpan = 10;
   cell.textContent = message;
   row.append(cell);
   return row;
@@ -512,10 +459,12 @@ function createResultRow(result) {
     appendCell(row, result.priority);
     appendCell(row, result.alarm_text, 'alarm-text');
     appendCell(row, result.einheit);
+    appendCell(row, result.gruppe);
     appendCell(row, result.verfasser);
   } else {
     appendCell(row, result.source_file);
     appendStatusCell(row, 'Fehler', 'error', result.error);
+    appendCell(row, '');
     appendCell(row, '');
     appendCell(row, '');
     appendCell(row, '');

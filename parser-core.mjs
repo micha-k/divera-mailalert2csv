@@ -112,6 +112,7 @@ export function extractDiveraAlert(body) {
     adresse: findMarker(text, /^Adresse\s*:/imu),
     priority: findMarker(text, /^Sonderrechte\/Priorit(?:ä|ae)t\s*:/imu),
     einheiten: findMarker(text, /^Einheiten?\s*:/imu),
+    gruppen: findMarker(text, /^Gruppen?\s*:/imu),
     verfasser: findMarker(text, /^Verfasst von\s*:/imu)
   };
   const requiredMarkers = {
@@ -131,12 +132,13 @@ export function extractDiveraAlert(body) {
   const priorityAndAlarmTextEnd = findEarliestMarkerStart(
     text.length,
     markers.einheiten,
+    markers.gruppen,
     markers.verfasser
   );
   const priorityAndAlarmText = text.slice(markers.priority.after, priorityAndAlarmTextEnd);
   const { priority, alarmText } = splitPriorityAndAlarmText(priorityAndAlarmText);
-  const hasVerfasser = Boolean(markers.verfasser);
-  const einheitEnd = hasVerfasser ? markers.verfasser.start : text.length;
+  const einheitEnd = findEarliestMarkerStart(text.length, markers.gruppen, markers.verfasser);
+  const gruppeEnd = findEarliestMarkerStart(text.length, markers.verfasser);
 
   return {
     einsatzstichwort: cleanSingleLine(text.slice(markers.stichwort.after, stichwortEnd)),
@@ -144,7 +146,8 @@ export function extractDiveraAlert(body) {
     priority: cleanSingleLine(priority),
     alarm_text: cleanAlarmText(alarmText),
     einheit: markers.einheiten ? cleanSingleLine(text.slice(markers.einheiten.after, einheitEnd)) : '',
-    verfasser: hasVerfasser ? cleanSingleLine(text.slice(markers.verfasser.after)) : ''
+    gruppe: markers.gruppen ? cleanSingleLine(text.slice(markers.gruppen.after, gruppeEnd)) : '',
+    verfasser: markers.verfasser ? cleanSingleLine(text.slice(markers.verfasser.after)) : ''
   };
 }
 
@@ -154,6 +157,7 @@ function validateMarkerOrder(markers) {
     ['adresse', markers.adresse],
     ['priority', markers.priority],
     ['einheiten', markers.einheiten],
+    ['gruppen', markers.gruppen],
     ['verfasser', markers.verfasser]
   ].filter(([, marker]) => marker);
 

@@ -6,6 +6,7 @@ export const CSV_COLUMNS = Object.freeze([
   'priority',
   'alarm_text',
   'einheit',
+  'gruppe',
   'verfasser'
 ]);
 

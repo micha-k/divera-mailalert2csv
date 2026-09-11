@@ -18,6 +18,7 @@ const successfulFirst = {
   priority: 'nein',
   alarm_text: 'Erste Zeile\nZweite Zeile',
   einheit: '',
+  gruppe: 'Region 1, Region 2, Region 3',
   verfasser: 'Müller'
 };
 const failed = {
@@ -34,6 +35,7 @@ const successfulSecond = {
   priority: '-1',
   alarm_text: 'Unauffällig',
   einheit: null,
+  gruppe: undefined,
   verfasser: undefined
 };
 
@@ -53,14 +55,15 @@ assert.deepEqual(CSV_COLUMNS, [
   'priority',
   'alarm_text',
   'einheit',
+  'gruppe',
   'verfasser'
 ]);
 
 const csv = createResultsCsv([successfulFirst, failed, successfulSecond]);
 const expected = [
-  '\ufeff"source_file";"datum";"einsatzstichwort";"ort";"priority";"alarm_text";"einheit";"verfasser"',
-  '"alarm;eins.eml";"2026-09-07T08:30:00+02:00";"NFS ""Akut""";"Berlin; Mitte";"nein";"Erste Zeile\r\nZweite Zeile";"";"Müller"',
-  '"\'=HYPERLINK(""https://example.invalid"")";"2026-09-07T09:00:00+02:00";"\'\t+SUM(1;1)";"\'  @remote";"\'-1";"Unauffällig";"";""',
+  '\ufeff"source_file";"datum";"einsatzstichwort";"ort";"priority";"alarm_text";"einheit";"gruppe";"verfasser"',
+  '"alarm;eins.eml";"2026-09-07T08:30:00+02:00";"NFS ""Akut""";"Berlin; Mitte";"nein";"Erste Zeile\r\nZweite Zeile";"";"Region 1, Region 2, Region 3";"Müller"',
+  '"\'=HYPERLINK(""https://example.invalid"")";"2026-09-07T09:00:00+02:00";"\'\t+SUM(1;1)";"\'  @remote";"\'-1";"Unauffällig";"";"";""',
   ''
 ].join('\r\n');
 
@@ -68,7 +71,7 @@ assert.equal(csv, expected);
 assert.equal(csv.startsWith('\ufeff'), true);
 assert.equal(csv.includes('fehler.eml'), false);
 assert.equal(csv.includes('Nicht exportieren'), false);
-assert.equal(createResultsCsv([failed]), `${String.fromCodePoint(0xfeff)}"source_file";"datum";"einsatzstichwort";"ort";"priority";"alarm_text";"einheit";"verfasser"\r\n`);
+assert.equal(createResultsCsv([failed]), `${String.fromCodePoint(0xfeff)}"source_file";"datum";"einsatzstichwort";"ort";"priority";"alarm_text";"einheit";"gruppe";"verfasser"\r\n`);
 assert.equal(CSV_MEDIA_TYPE, 'text/csv;charset=utf-8');
 assert.equal(createCsvFilename(new Date(2026, 8, 7)), 'divera-alarme-2026-09-07.csv');
 

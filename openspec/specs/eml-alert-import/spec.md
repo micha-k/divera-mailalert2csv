@@ -54,34 +54,51 @@ The system SHALL extract a decoded readable mail body from each parsed `.eml` fi
 - **THEN** the system marks that file as failed with a body extraction error
 
 ### Requirement: DIVERA alert field extraction
-The system SHALL extract structured alert data from the decoded DIVERA mail body using field markers rather than concrete sample values. `Stichwort:` and `Sonderrechte/Priorität:` SHALL be required markers. `Adresse:`, `Einheiten:`, and `Verfasst von:` SHALL be optional markers.
+The system SHALL extract structured alert data from the decoded DIVERA mail body using field markers rather than concrete sample values. `Stichwort:` and `Sonderrechte/Priorität:` SHALL be required markers. `Adresse:`, `Einheiten:`, `Gruppe:` or `Gruppen:`, and `Verfasst von:` SHALL be optional markers.
 
 #### Scenario: Standard DIVERA alert body is parsed
 - **WHEN** the decoded body contains `Stichwort:`, `Adresse:`, `Sonderrechte/Priorität:`, alert text, and `Einheiten:`
-- **THEN** the system extracts `einsatzstichwort`, `ort`, `priority`, `alarm_text`, `einheit`, and an empty `verfasser`
+- **THEN** the system extracts `einsatzstichwort`, `ort`, `priority`, `alarm_text`, and `einheit`
+- **AND** the system returns empty `gruppe` and `verfasser` values
 
 #### Scenario: Alert body without address is parsed
 - **WHEN** the decoded body contains `Stichwort:`, `Sonderrechte/Priorität:`, alert text, and `Einheiten:`
 - **AND** the decoded body does not contain `Adresse:`
 - **THEN** the system extracts `einsatzstichwort`, `priority`, `alarm_text`, and `einheit`
-- **AND** the system returns an empty `ort`
+- **AND** the system returns empty `ort` and `gruppe` values
 
 #### Scenario: Alert body without units is parsed
 - **WHEN** the decoded body contains `Stichwort:`, `Adresse:`, `Sonderrechte/Priorität:`, and alert text
 - **AND** the decoded body does not contain `Einheiten:`
 - **THEN** the system extracts `einsatzstichwort`, `ort`, `priority`, and `alarm_text`
-- **AND** the system returns an empty `einheit`
+- **AND** the system returns empty `einheit` and `gruppe` values
 
 #### Scenario: Alert body without address and units is parsed
 - **WHEN** the decoded body contains `Stichwort:`, `Sonderrechte/Priorität:`, and alert text
-- **AND** the decoded body does not contain `Adresse:` or `Einheiten:`
+- **AND** the decoded body does not contain `Adresse:`, `Einheiten:`, `Gruppe:`, or `Gruppen:`
 - **THEN** the system extracts `einsatzstichwort`, `priority`, and `alarm_text`
-- **AND** the system returns empty `ort` and `einheit` values
+- **AND** the system returns empty `ort`, `einheit`, and `gruppe` values
+
+#### Scenario: Plural groups field without units is parsed
+- **WHEN** the decoded body contains alert text followed by `Gruppen: Region 1, Region 2, Region 3`
+- **AND** the decoded body does not contain `Einheiten:`
+- **THEN** the system extracts `Region 1, Region 2, Region 3` as `gruppe`
+- **AND** the system returns an empty `einheit`
+- **AND** the system excludes the groups marker and value from `alarm_text`
+
+#### Scenario: Singular group marker is parsed
+- **WHEN** the decoded body contains `Gruppe:` followed by a group value
+- **THEN** the system extracts the value as `gruppe`
+
+#### Scenario: Units and groups are parsed together
+- **WHEN** the decoded body contains `Einheiten:` followed by a units value and then `Gruppen:` followed by a groups value
+- **THEN** the system extracts the units value as `einheit` and the groups value as `gruppe`
+- **AND** the system excludes the groups marker and value from `einheit`
 
 #### Scenario: Optional author field is parsed
-- **WHEN** the decoded body contains `Verfasst von:` after the alert text or units section
+- **WHEN** the decoded body contains `Verfasst von:` after the alert text, units section, or groups section
 - **THEN** the system extracts the author value as `verfasser`
-- **AND** the system excludes `Verfasst von:` and its value from `alarm_text` and `einheit`
+- **AND** the system excludes `Verfasst von:` and its value from `alarm_text`, `einheit`, and `gruppe`
 
 #### Scenario: Footer follows DIVERA alert body
 - **WHEN** the decoded body contains DIVERA footer text after the alert fields
@@ -107,7 +124,7 @@ The system SHALL display parsing results in a table with one row per processed f
 
 #### Scenario: File parses successfully
 - **WHEN** a selected `.eml` file is parsed successfully
-- **THEN** the table row shows `datum`, `einsatzstichwort`, `ort`, `priority`, `alarm_text`, `einheit`, and `verfasser`
+- **THEN** the table row shows `datum`, `einsatzstichwort`, `ort`, `priority`, `alarm_text`, `einheit`, `gruppe`, and `verfasser`
 
 #### Scenario: File parsing fails
 - **WHEN** a selected `.eml` file cannot be parsed successfully
@@ -215,7 +232,7 @@ The system SHALL warn users before page reload, close, or navigation when local 
 - **THEN** the system does not request a leave confirmation dialog
 
 ### Requirement: Result filtering
-The system SHALL provide visible result filtering controls for parsed `.eml` rows, including full-text filtering and status filtering.
+The system SHALL provide visible result filtering controls for parsed `.eml` rows, including full-text filtering across all visible result fields and status filtering.
 
 #### Scenario: Filters are disabled before parsing results exist
 - **WHEN** no parsing results are displayed
@@ -226,6 +243,11 @@ The system SHALL provide visible result filtering controls for parsed `.eml` row
 - **WHEN** parsing results are displayed
 - **AND** the user enters text into the result search field
 - **THEN** the table displays only rows whose visible result fields contain the entered text
+
+#### Scenario: User filters results by group text
+- **WHEN** parsing results are displayed
+- **AND** the user enters text that occurs in a result's `gruppe` value
+- **THEN** the table includes that result among the matching rows
 
 #### Scenario: User filters results by status
 - **WHEN** parsing results are displayed
@@ -247,7 +269,7 @@ The system SHALL provide visible result filtering controls for parsed `.eml` row
 - **THEN** the system resets the result filters
 
 ### Requirement: Result sorting
-The system SHALL allow users to sort parsed result rows by practical table columns without changing the underlying parsed data.
+The system SHALL allow users to sort parsed result rows by practical table columns, including the group column, without changing the underlying parsed data.
 
 #### Scenario: Sort controls are disabled before parsing results exist
 - **WHEN** no parsing results are displayed
@@ -257,6 +279,12 @@ The system SHALL allow users to sort parsed result rows by practical table colum
 - **WHEN** parsing results are displayed
 - **AND** the user activates a sortable table header
 - **THEN** the table displays the currently filtered rows ordered by that column
+- **AND** the table indicates the active sort column and direction
+
+#### Scenario: User sorts by group
+- **WHEN** parsing results are displayed
+- **AND** the user activates the sortable `Gruppe` table header
+- **THEN** the table displays the currently filtered rows ordered by `gruppe`
 - **AND** the table indicates the active sort column and direction
 
 #### Scenario: User toggles sort direction
